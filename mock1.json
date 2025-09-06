@@ -1,0 +1,246 @@
+{
+  "name": "mock1",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "owner": {
+          "__rl": true,
+          "value": "sshr666",
+          "mode": "list",
+          "cachedResultName": "sshr666",
+          "cachedResultUrl": "https://github.com/sshr666"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "Sample-for-hackathon",
+          "mode": "list",
+          "cachedResultName": "Sample-for-hackathon",
+          "cachedResultUrl": "https://github.com/sshr666/Sample-for-hackathon"
+        },
+        "events": "={{ [\"push\"] }}",
+        "options": {
+          "insecureSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.githubTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e9029505-05c3-4f7b-8715-021137da4d91",
+      "name": "Github Trigger",
+      "webhookId": "d6ca4229-db50-44b8-b873-ea3f1ac74ba2",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "githubOAuth2Api": {
+          "id": "5DtHqjrUleEPzrKq",
+          "name": "GitHub account"
+        }
+      },
+      "notes": "analyzed push request."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09DVJP737C",
+          "mode": "list",
+          "cachedResultName": "koi-toh-hackathon"
+        },
+        "text": "=*{{$json.title}}*\n{{ $json.text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "75e928f5-05b3-4b5a-9eac-c7e0b79f1fad",
+      "name": "Send a message",
+      "webhookId": "f1220fe3-84c0-4f54-bdc0-dec87a5d8a6d",
+      "alwaysOutputData": true,
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "TWO2tBweNb6Xf3QC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiOutput = $input.first().json.content.parts[0].text\nconst parsedData = JSON.parse(geminiOutput);\n\nreturn [{ json: parsedData }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "fca2aac3-1d00-4afb-b040-36ecdc32b3e6",
+      "name": "Parses AI Message"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash-lite"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a senior software engineer. Based on the following code changes and commit messages, write a brief but informative changelog entry. Focus on what was added or removed and the purpose of the change.\nGenerate a JSON object with two keys: title and text. The value for title should be a concise headline, and the value for text should be a detailed description. Do not include any other text.\n\nCommit Messages:\n{{$json.all_commit_messages}}\n\nCode Changes:\n{{$json.all_patches}}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "c859dcca-d363-4a29-aab0-4fdf60ae5812",
+      "name": "Analyse commit changes",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "khFcCVNhPy5k2dwb",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const patches = [];\nconst commitMessages = [];\n\nconst files = $input.first().json.files;\nconst commits = $input.first().json.commits;\n\nfor (const commit of commits) {\n  commitMessages.push(commit.commit.message);\n}\n\nfor (const file of files) {\n  if (file.patch) {\n    patches.push(`---\nFile: ${file.filename}\n---\n${file.patch}`);\n  }\n}\n\nreturn [\n  {\n    json: {\n      all_patches: patches.join('\\n\\n'),\n      all_commit_messages: commitMessages.join('\\n')\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b55ba062-2687-4b58-b7ef-be5e95514f21",
+      "name": "Sends patch and commit message"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{$json.body.repository.full_name}}/compare/{{$json.body.before}}...{{$json.body.after}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubOAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "before",
+              "value": "={{ $json.body.before }}"
+            },
+            {
+              "name": "after",
+              "value": "={{ $json.body.after }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "03cfad87-2d25-459d-a934-8f3d97d58099",
+      "name": "gets the latest and previous version",
+      "credentials": {
+        "githubOAuth2Api": {
+          "id": "5DtHqjrUleEPzrKq",
+          "name": "GitHub account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Github Trigger": {
+      "main": [
+        [
+          {
+            "node": "gets the latest and previous version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parses AI Message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse commit changes": {
+      "main": [
+        [
+          {
+            "node": "Parses AI Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sends patch and commit message": {
+      "main": [
+        [
+          {
+            "node": "Analyse commit changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gets the latest and previous version": {
+      "main": [
+        [
+          {
+            "node": "Sends patch and commit message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a162adad-ea46-4704-9e3f-b58be586d65a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6c396d252836bdd3a5b40c95ae28bf5f4a4563538b1c9fd8fa838bfd43d3e0a4"
+  },
+  "id": "tNPis8xcJCxGHZG5",
+  "tags": []
+}
